@@ -1,2 +1,5 @@
-# web-crawler
-Web Crawler
+# Web Crawler
+
+A Web Crawler.
+
+$ go run ./cmd/main.go [url]

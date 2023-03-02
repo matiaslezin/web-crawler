@@ -27,6 +27,7 @@ func (p *Parser) Parse(ctx context.Context, baseURI, uri string, links chan stri
 
 	resp, err := p.Do(request)
 	if err != nil {
+		fmt.Println(fmt.Sprintf("request to %s, err: %s", uri, err.Error()))
 		return
 	}
 

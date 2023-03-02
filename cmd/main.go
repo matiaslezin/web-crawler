@@ -2,8 +2,9 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
-	"net/http"
+	"os"
 	"runtime"
 	"time"
 
@@ -11,68 +12,62 @@ import (
 )
 
 func main() {
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	flag.Parse()
+
+	args := flag.Args()
+
+	if len(args) < 1 {
+		fmt.Println("missing base URI")
+		os.Exit(1)
+	}
+
+	baseURI := args[0]
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	parser := internal.NewParser(http.Client{
-		Timeout: 500 * time.Millisecond,
-	})
-
-	baseURI := "https://google.com/"
-
 	links := make(chan string)
-	pendingLinks := make(chan int)
-	processingLinks := make(chan string)
+	pending := make(chan int)
+	processing := make(chan string)
 
 	done := make(chan interface{})
-	doneTotal := make(chan interface{})
 
-	go checkLinks(links, processingLinks, pendingLinks)
-	go checkPending(done, pendingLinks)
+	go checkLinks(links, processing, pending)
+	go checkPending(done, pending)
 
 	g := runtime.GOMAXPROCS(0)
 	for i := 0; i < g; i++ {
-		go func(parser internal.Parser) {
-			for {
-				select {
-				case uri := <-processingLinks:
-					parser.Parse(ctx, baseURI, uri, links)
-					pendingLinks <- -1
-				case <-done:
-					doneTotal <- struct{}{}
-					return
-				}
-			}
-		}(parser)
+		crawler := internal.NewCrawler(baseURI)
+		go crawler.Crawl(ctx, done, pending, links, processing)
 	}
 
-	fmt.Println("start crawler...")
+	fmt.Println("start crawling...")
 	go func() { links <- baseURI }()
 
 	select {
-	case <-doneTotal:
+	case <-done:
 		fmt.Println("finished successfully")
 	case <-ctx.Done():
 		fmt.Println("process is taking too long, shutting down...")
 	}
 }
 
-func checkLinks(links chan string, processingLinks chan string, pendingLinks chan int) {
+func checkLinks(links chan string, processing chan string, pending chan int) {
 	processed := make(map[string]bool)
 
 	for l := range links {
 		if !processed[l] {
 			processed[l] = true
-			processingLinks <- l
-			pendingLinks <- 1
+			processing <- l
+			pending <- 1
 		}
 	}
 }
 
-func checkPending(done chan interface{}, pendingLinks chan int) {
+func checkPending(done chan interface{}, pending chan int) {
 	var count int
 
-	for c := range pendingLinks {
+	for c := range pending {
 		count += c
 		if count == 0 {
 			done <- struct{}{}
