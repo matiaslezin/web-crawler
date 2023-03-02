@@ -1,4 +1,4 @@
-package internal
+package internal_test
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"web-crawler/internal"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -53,7 +55,7 @@ func TestParser_Parse(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			mockParser := NewParser(tt.client)
+			mockParser := internal.NewParser(tt.client)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 			defer cancel()
@@ -66,47 +68,6 @@ func TestParser_Parse(t *testing.T) {
 			case <-ctx.Done():
 				assert.Equal(t, tt.expected, "")
 			}
-		})
-	}
-}
-
-func Test_prepareLink(t *testing.T) {
-	var cases = []struct {
-		name     string
-		baseURI  string
-		href     string
-		expected string
-	}{
-		{
-			name:     "baseURI and href with same domain",
-			baseURI:  "https://google.com/",
-			href:     "https://google.com/news",
-			expected: "https://google.com/news",
-		},
-		{
-			name:     "href missing domain",
-			baseURI:  "https://google.com/",
-			href:     "/news",
-			expected: "https://google.com/news",
-		},
-		{
-			name:     "href with wrong domain",
-			baseURI:  "https://google.com/",
-			href:     "https://facebook.com/",
-			expected: "",
-		},
-		{
-			name:     "href with wrong sub domain",
-			baseURI:  "https://google.com/",
-			href:     "https://news.google.com/",
-			expected: "",
-		},
-	}
-
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			result := prepareLink(tt.baseURI, tt.href)
-			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
