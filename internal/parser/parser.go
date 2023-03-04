@@ -1,4 +1,4 @@
-package internal
+package parser
 
 import (
 	"context"
@@ -10,25 +10,29 @@ import (
 )
 
 type Parser struct {
-	http.Client
+	*http.Client
 }
 
-func NewParser(c http.Client) Parser {
+func New(c *http.Client) Parser {
+	if c == nil {
+		panic("nil http.Client")
+	}
+
 	return Parser{
-		c,
+		Client: c,
 	}
 }
 
-func (p *Parser) Parse(ctx context.Context, baseURI, uri string, links chan string) {
+func (p Parser) Parse(ctx context.Context, baseURI, uri string) []string {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, uri, nil)
 	if err != nil {
-		return
+		return nil
 	}
 
 	resp, err := p.Do(request)
 	if err != nil {
 		fmt.Println(fmt.Sprintf("request to %s, err: %s", uri, err.Error()))
-		return
+		return nil
 	}
 
 	defer resp.Body.Close()
@@ -41,11 +45,10 @@ func (p *Parser) Parse(ctx context.Context, baseURI, uri string, links chan stri
 		l := prepareLink(baseURI, link)
 		if l != "" {
 			hrefs = append(hrefs, l)
-			go func() { links <- l }()
 		}
 	}
 
-	fmt.Println(fmt.Sprintf("Visited %s, pageLinks: %v \n", uri, hrefs))
+	return hrefs
 }
 
 func prepareLink(base, href string) string {

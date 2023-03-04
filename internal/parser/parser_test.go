@@ -1,4 +1,4 @@
-package internal_test
+package parser_test
 
 import (
 	"context"
@@ -6,9 +6,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-	"time"
 
-	"web-crawler/internal"
+	"web-crawler/internal/parser"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -20,14 +19,12 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func TestParser_Parse(t *testing.T) {
-	links := make(chan string)
-
 	var cases = []struct {
 		name     string
 		client   http.Client
 		uri      string
 		href     string
-		expected string
+		expected []string
 	}{
 		{
 			name: "find about link",
@@ -38,7 +35,7 @@ func TestParser_Parse(t *testing.T) {
 				}
 			})},
 			uri:      "https://monzo.com",
-			expected: "https://monzo.com/about/",
+			expected: []string{"https://monzo.com/about/"},
 		},
 		{
 			name: "find no link",
@@ -49,25 +46,19 @@ func TestParser_Parse(t *testing.T) {
 				}
 			})},
 			uri:      "https://monzo.com",
-			expected: "",
+			expected: nil,
 		},
 	}
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			mockParser := internal.NewParser(tt.client)
-
-			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-			defer cancel()
-
-			mockParser.Parse(context.Background(), "https://monzo.com", tt.uri, links)
-
-			select {
-			case uri := <-links:
-				assert.Equal(t, tt.expected, uri)
-			case <-ctx.Done():
-				assert.Equal(t, tt.expected, "")
+			mockParser := parser.Parser{
+				Client: tt.client,
 			}
+
+			links := mockParser.Parse(context.Background(), "https://monzo.com", tt.uri)
+
+			assert.Equal(t, tt.expected, links)
 		})
 	}
 }
