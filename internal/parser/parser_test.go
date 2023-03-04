@@ -53,7 +53,7 @@ func TestParser_Parse(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			mockParser := parser.Parser{
-				Client: tt.client,
+				Client: &tt.client,
 			}
 
 			links := mockParser.Parse(context.Background(), "https://monzo.com", tt.uri)
