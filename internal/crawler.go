@@ -3,24 +3,20 @@ package crawler
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"sync"
-	"time"
-
-	"web-crawler/internal/parser"
 )
 
-type Crawler struct {
-	domain string
-	parser.Parser
-}
+type (
+	parserFunc func(ctx context.Context, baseURI, uri string) []string
 
-func New(domain string) Crawler {
+	Crawler struct {
+		parserFunc
+	}
+)
+
+func New(parser func(ctx context.Context, baseURI, uri string) []string) Crawler {
 	return Crawler{
-		domain: domain,
-		Parser: parser.New(&http.Client{
-			Timeout: 60 * time.Second,
-		}),
+		parser,
 	}
 }
 
@@ -43,7 +39,7 @@ func (c Crawler) Run(ctx context.Context, done chan<- struct{}, baseURI, uri str
 func (c Crawler) crawl(ctx context.Context, baseURI, uri string, wg *sync.WaitGroup, processed *sync.Map) {
 	defer wg.Done()
 
-	links := c.Parse(ctx, baseURI, uri)
+	links := c.parserFunc(ctx, baseURI, uri)
 
 	fmt.Println(fmt.Sprintf("Visited %s, links: %v \n", uri, links))
 

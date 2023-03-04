@@ -4,10 +4,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"time"
 
 	"web-crawler/internal"
+	"web-crawler/internal/parser"
 )
 
 func main() {
@@ -27,7 +29,7 @@ func main() {
 
 	done := make(chan struct{})
 
-	c := crawler.New(baseURI)
+	c := crawler.New(buildParser())
 	go c.Run(ctx, done, baseURI, baseURI)
 
 	select {
@@ -36,4 +38,10 @@ func main() {
 	case <-ctx.Done():
 		fmt.Println("process is taking too long, shutting down...")
 	}
+}
+
+func buildParser() func(ctx context.Context, baseURI, uri string) []string {
+	return parser.New(&http.Client{
+		Timeout: 60 * time.Second,
+	}).Parse
 }
